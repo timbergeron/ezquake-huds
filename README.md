@@ -120,42 +120,52 @@ the team overlay falls back to the normal Quake charset.
 Location names in the team overlay need `.loc` files in `<quakedir>/qw/locs/`. The hub
 fetches them from `https://assets.quake.world/maps/<map>.loc`.
 
+Don't combine `qwnu.pk3` with a pack that ships `textures/wad/` replacements, such as
+`qrack.pk3`. `Draw_CacheWadPic` tries `textures/wad/<name>` before `gfx/<name>`, so
+those images would replace the hub's.
+
 ### Where each part comes from
 
 | Part | On the hub | Here |
 |---|---|---|
 | Bottom HUD | [`config_qtv_v5.cfg`](https://github.com/quakeworldnu/hub.quakeworld.nu/blob/main/public/assets/fte/config_qtv_v5.cfg), run by FTE's ezhud plugin (`plug_sbar 3`) | The same `hud_*` block, with its FTE variables resolved (margin 12, nmargin -12, weapon scale 1.5) |
-| Team overlay | HTML — [`PlayerInfo.tsx`](https://github.com/quakeworldnu/hub.quakeworld.nu/blob/main/src/pages/games/player/controls/PlayerInfo.tsx), Roboto Bold 14px | `hud_teaminfo` with a TrueType font |
-| Top score box | HTML — [`Participants.tsx`](https://github.com/quakeworldnu/hub.quakeworld.nu/blob/main/src/pages/games/player/controls/Participants.tsx) | `hud_teamfrags`, horizontal, names outside |
-| Artwork | [`qw-ctf/qtube-assets`](https://github.com/qw-ctf/qtube-assets), branch `assets` | The same 143 HUD files |
+| Team overlay | HTML — [`PlayerInfo.tsx`](https://github.com/quakeworldnu/hub.quakeworld.nu/blob/main/src/pages/games/player/controls/PlayerInfo.tsx), Roboto Bold 14px | `hud_teaminfo` with a TrueType font, plus `hud_teamfrags` for the team-coloured header boxes |
+| Top score box | HTML — [`Participants.tsx`](https://github.com/quakeworldnu/hub.quakeworld.nu/blob/main/src/pages/games/player/controls/Participants.tsx) | Not reproduced — see below |
+| Artwork | The hub's own FTE asset set, listed in [`assets.ts`](https://github.com/quakeworldnu/hub.quakeworld.nu/blob/main/src/pages/games/fte/assets.ts) and served from `https://a.quake.world/fte/id1/` | The same 143 files: `gfx/*.png`, the `povo5f_xtm` charset, the `xtm_dot` crosshair, tracker icons |
 
 ### ezQuake-specific adjustments
 
 | Setting | Why |
 |---|---|
 | `cvar_reset_re ^hud_` | Clean slate; otherwise elements this file does not mention keep stale values from `config.cfg` |
-| `hud_gunN_scale 3` | FTE sizes WAD replacements by the image (48x32); ezQuake keeps the lump size (24x16). The hub's 1.5 in FTE is 3.0 here |
 | `font_gradient_*` flat white | ezQuake bakes a gradient into TrueType glyphs (digits yellow to orange by default), which would tint every coloured value |
 | `font_gradient_alternate_*` `179 127 58` | The hub's bracket colour. Brackets are the high-bit glyphs `$xdb` / `$xdd`, which use this gradient |
 | `tp_name_rl` / `lg` / `rlg` / `sng` / `ssg` | Best-weapon text in the hub's colours. These also change how teamplay macros print weapon names; the hub config does the same |
 | `hud_teaminfo_loc_width 3` | ezQuake clips at the cell edge; three cells hold about five Roboto characters, matching the hub's `substring(0, 5)` |
-| `hud_teamfrags_fliptext 2` | Names on the outside: `blue [46] [57] red` |
-| `hud_sortrules_includeself 2` | Own team in the right-hand slot, as on the hub |
+| `hud_teamfrags` on the team headers | The only element that draws real team colours. One element, so its two boxes are a fixed distance apart: rows are `8 × 1.5 = 12` units, and in 4on4 the second header is `(1 + 4 + 1) × 12 = 72` below the first, so `cell_height 12` + `space_y 60`, `pos_y -60` |
+| `hud_teamfrags_style 3` | No own-team marker (`Frags_DrawColors`: "Draw nothing") |
+| `hud_sortrules_teamsort 0`, `includeself 0` | Alphabetical team order whoever you track, as on the hub (`getTeams()` sorts with `localeCompare`) |
+| `font_outline_width 0` | The outline is a dark dilation baked into the glyph; after the glyph texture is shrunk it becomes a ragged fringe |
 
 ### Known differences from the hub
 
-These are limits of `hud_teaminfo`, not settings:
+These are engine limits, not settings:
 
 - **Wider team overlay.** teaminfo lays text out in fixed character cells even with a
   proportional font, so the panel is roughly 1.6x the hub's width at the same text size.
-- **Team headers** show the name at the left and a small red dot plus the frags at the
-  right, instead of `name [46]` in a coloured box. teaminfo draws headers as plain text,
-  and a separate score box cannot follow the second header because its position depends
-  on team size.
+- **Header boxes are exact in 4on4 only.** In 2on2 the second team's box lands two rows
+  below its header. `hud_teamfrags` is one element with a fixed gap between its boxes,
+  while the second header's position depends on team size.
+- **Team name sits at the left** of the header row, not beside the box; teaminfo draws
+  its own header text and it cannot be moved or hidden.
+- **No top-centre score box.** It would need a second `hud_teamfrags`, and
+  `hud_score_team` / `hud_score_enemy` can't draw real team colours (their box is a fixed
+  frame colour, ordered by point of view rather than alphabetically).
 - **Player names are right-aligned**; the hub left-aligns them.
 - **No highlighted row** for the player being tracked.
-- **Face slot:** the hub shows a red `+`. That image is not in the hub's asset pack or any
-  qw-ctf repository, so the pack's own face is shown instead.
+- **Text is softer than in a browser.** ezQuake renders at 1× on Retina displays (it
+  deliberately doesn't request high-DPI, `vid_sdl2.c`), and TrueType glyphs come from a
+  2048×2048 texture with no mipmaps, shrunk about 4× at this size. Neither is configurable.
 
 ---
 
@@ -167,9 +177,8 @@ These are limits of `hud_teaminfo`, not settings:
   ([quakeworldnu/hub.quakeworld.nu](https://github.com/quakeworldnu/hub.quakeworld.nu)),
   with base `hud_teamfrags` settings from vikpe's
   [qw-streambot-ezquake](https://github.com/vikpe/qw-streambot-ezquake).
-- qwnu artwork from [qw-ctf/qtube-assets](https://github.com/qw-ctf/qtube-assets), which
-  assembles community packs from [gfx.quakeworld.nu](https://gfx.quakeworld.nu) — deurk's
-  HUD, the "faithful" icon sets and dithe's HUD among them.
+- qwnu artwork is the QuakeWorld Hub's own FTE asset set, as listed in the hub's
+  `src/pages/games/fte/assets.ts` and served from `https://a.quake.world/fte/`.
 - Roboto by Google, Apache License 2.0; the licence ships inside `qwnu.pk3`.
 - `qrack_lmp.pk3`'s two bar images are the `SBAR` and `IBAR` lumps from id Software's
   `pak0.pak`, converted to TGA. Quake game data is copyright id Software.
