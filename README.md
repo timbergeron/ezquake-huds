@@ -11,6 +11,10 @@ drop-in packages.
 | `hud_qrack.cfg` | The qrack layout on its own (identical inside both qrack pk3s) |
 | `hud_qwnu.cfg` | The hub layout on its own (identical to the one in `qwnu.pk3`) |
 
+Screenshots are ezQuake (unezQuake 2.0.3) playing back a 4on4 dm3 demo from the
+[QuakeWorld Hub](https://hub.quakeworld.nu/games/?gameId=239471), windowed at 1294×820,
+all three at the same moment of the match.
+
 Install **one** qrack package, not both. They share `cfg/hud_qrack.cfg`,
 `gfx/sbar.tga` and `gfx/ibar.tga`, and whichever archive the engine loads last wins.
 
@@ -32,6 +36,14 @@ the same `cfg/` file is ignored, so edit one or the other.
 A two-row status bar (sbar + ibar) based on the woods/qrack layout, reworked so every
 element is anchored to its parent group rather than to absolute screen pixels. It holds its
 layout at any `vid_conwidth` and across windowed/fullscreen.
+
+**`qrack.pk3`** — 24-bit artwork
+
+![qrack.pk3](screenshots/qrack.png)
+
+**`qrack_lmp.pk3`** — stock Quake graphics
+
+![qrack_lmp.pk3](screenshots/qrack_lmp.png)
 
 ### Install
 
@@ -83,12 +95,18 @@ The bar is 334 units wide and centred, so console widths below about 340 will cl
 With only `vid_conwidth` set, `vid_conheight` is derived from the live window aspect ratio.
 
 Weapon icons sit in the ibar slot row via `group6`, anchored to `group2` at (1, 10) at a
-25-unit pitch. Frag cells use original Quake's geometry — 32-unit pitch, no gap, four
-cells, right edge 2 units in — drawn above the ibar, which is both where stock Quake puts
-them (`vid.height - SBAR_HEIGHT - 23`) and the only place they fit, since the ammo counter
-occupies `group1` x 260–334.
+25-unit pitch. Frag cells sit in the ibar's four top-right frag boxes, right of the four
+ammo counts — where stock Quake draws them. `Sbar_DrawFrags` uses
+`y = vid.height - SBAR_HEIGHT - 23`, and `SBAR_HEIGHT` is only the 24-unit sbar, so that
+lands 1 unit inside the ibar. The boxes are native x 192/224/256/288/320 with a 28-wide
+fill 2 units in; scaled ×1.04375 into `group2` that is a first cell at 202.5 and a pitch
+of 33.4, reproduced with `pos_x 198`, `cell_width 29`, `space_x 4`.
 
-### Known limitation
+### Known limitations
+
+Frag numbers are centred in their cells. Stock Quake right-aligns a 3-character field
+(`%3i`), but `Frags_DrawColors` always centres the number and no `hud_frags` option
+changes that.
 
 Holding Tab in single player hides the whole HUD and draws the engine's own solo scoreboard
 in its place. Both behaviours are hardcoded: `hud.c` returns early for any element without
@@ -98,6 +116,8 @@ y=4 with kills/skill/secrets at y=12, flush against each other. No cvar gates ei
 ---
 
 ## qwnu — the QuakeWorld Hub HUD
+
+![qwnu.pk3](screenshots/qwnu.png)
 
 ### Install
 
